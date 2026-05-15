@@ -1,0 +1,160 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-05-15 17:08:24.900836",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "combined_contract_section",
+  "combined",
+  "contract_details_section",
+  "customer",
+  "machine_serial",
+  "rental_frequency",
+  "monthly_free_copies_bnw",
+  "extra_rate_bnw",
+  "column_break_hvyc",
+  "rental_amount",
+  "contract_start_date",
+  "reading_frequency",
+  "monthly_free_copies_color",
+  "extra_rate_color",
+  "naming_series",
+  "combined_contract_details_section",
+  "combined_free_copies",
+  "column_break_rlgm",
+  "combined_excess_rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "combined_contract_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Contract"
+  },
+  {
+   "default": "0",
+   "fieldname": "combined",
+   "fieldtype": "Check",
+   "label": "Combined?"
+  },
+  {
+   "fieldname": "contract_details_section",
+   "fieldtype": "Section Break",
+   "label": "Contract Details"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Company Name",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "machine_serial",
+   "fieldtype": "Data",
+   "label": "Machine Serial"
+  },
+  {
+   "fieldname": "rental_frequency",
+   "fieldtype": "Select",
+   "label": "Rental Frequency",
+   "options": "Monthly\nQuarterly\nHalf Yearly\nBi-monthly\nAnnual"
+  },
+  {
+   "fieldname": "monthly_free_copies_bnw",
+   "fieldtype": "Int",
+   "label": "Free Copies Bnw"
+  },
+  {
+   "fieldname": "extra_rate_bnw",
+   "fieldtype": "Currency",
+   "label": "Excess BnW Rate"
+  },
+  {
+   "fieldname": "column_break_hvyc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rental_amount",
+   "fieldtype": "Int",
+   "label": "Rental Amount"
+  },
+  {
+   "fieldname": "contract_start_date",
+   "fieldtype": "Date",
+   "label": "Contract Start Date"
+  },
+  {
+   "fieldname": "reading_frequency",
+   "fieldtype": "Select",
+   "label": "Reading Frequency",
+   "options": "Monthly\nQuarterly"
+  },
+  {
+   "fieldname": "monthly_free_copies_color",
+   "fieldtype": "Int",
+   "label": "Free Copies Color"
+  },
+  {
+   "fieldname": "extra_rate_color",
+   "fieldtype": "Currency",
+   "label": "Excess Color Rate"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": ".machine_serial.-PC-.####"
+  },
+  {
+   "fieldname": "combined_contract_details_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Contract Details"
+  },
+  {
+   "fieldname": "combined_free_copies",
+   "fieldtype": "Int",
+   "label": "Combined Free Copies"
+  },
+  {
+   "fieldname": "column_break_rlgm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "combined_excess_rate",
+   "fieldtype": "Currency",
+   "label": "Combined Excess Rate"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-15 20:40:55.932774",
+ "modified_by": "Administrator",
+ "module": "Readings",
+ "name": "Printer Contract",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "machine_serial"
+}
