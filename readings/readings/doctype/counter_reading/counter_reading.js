@@ -393,7 +393,7 @@ function run_calculation(frm) {
                         let allowed_combined = 0;
                         let prorated_combined = 0;
 
-                        if (!prev || days >= 30) {
+                        if (!prev) {
                             allowed_combined = free_combined;
                         } else {
                             prorated_combined = (free_combined / 30) * days;
@@ -422,7 +422,7 @@ function run_calculation(frm) {
                         let prorated_bnw = 0, prorated_color = 0;
                         let allowed_bnw = 0, allowed_color = 0;
 
-                        if (!prev || days >= 30) {
+                        if (!prev) {
                             allowed_bnw   = free_bnw;
                             allowed_color = free_color;
                         } else {

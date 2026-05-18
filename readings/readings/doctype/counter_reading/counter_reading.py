@@ -192,7 +192,7 @@ class CounterReading(Document):
             free_combined = contract.combined_free_copies or 0
             combined_rate = contract.combined_excess_rate or 0
 
-            if not previous_read_record or days >= 30:
+            if not previous_read_record:
                 allowed_combined = free_combined
             else:
                 prorated_combined = (free_combined / 30) * days
@@ -240,7 +240,7 @@ class CounterReading(Document):
             bnw_rate = contract.extra_rate_bnw or 0
             color_rate = contract.extra_rate_color or 0
 
-            if not previous_read_record or days >= 30:
+            if not previous_read_record:
                 allowed_bnw_calc = free_bnw
                 allowed_color_calc = free_color
                 prorated_bnw = 0
