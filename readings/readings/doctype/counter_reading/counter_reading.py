@@ -2,7 +2,6 @@
 # For license information, please see license.txt
 
 import math
-
 import frappe
 from frappe.model.document import Document
 from frappe.utils import getdate, date_diff, add_days
@@ -12,7 +11,6 @@ class CounterReading(Document):
 
     def validate(self):
 
-        # Initialize previous consumption variables
         prev_bnw_consumption = 0
         prev_color_consumption = 0
         prev_bnw_consumption_a3 = 0
@@ -20,7 +18,6 @@ class CounterReading(Document):
         prev_bnw_consumption_a5 = 0
         prev_color_consumption_a5 = 0
 
-        # Ensure reading counts are numbers
         self.bnw_count = self.bnw_count or 0
         self.color_count = self.color_count or 0
         self.current_bnw_readinga3 = self.current_bnw_readinga3 or 0
@@ -28,7 +25,6 @@ class CounterReading(Document):
         self.current_bnw_readinga5 = self.current_bnw_readinga5 or 0
         self.current_color_readinga5 = self.current_color_readinga5 or 0
 
-        # Validate reading date
         if not self.reading_date:
             frappe.throw("Please select a Reading Date before saving.")
 
@@ -37,7 +33,7 @@ class CounterReading(Document):
         except Exception:
             frappe.throw(f"Invalid Reading Date: {self.reading_date}")
 
-        # ✅ Amended flow
+        # ✅ Amended flow — fetch previous reading from BEFORE the cancelled doc
         if self.amended_from:
             cancelled_doc = frappe.get_doc("Counter Reading", self.amended_from)
             cancelled_reading_date = cancelled_doc.reading_date
@@ -63,14 +59,15 @@ class CounterReading(Document):
             )
 
         else:
-            # ✅ Normal flow
+            # ✅ Normal flow — amended_from filter இல்ல
+            # amended submitted docs-உம் include ஆகும்
             previous_read_record = frappe.get_all(
                 "Counter Reading",
                 filters={
                     "customer": self.customer,
                     "docstatus": 1,
                     "reading_date": ["<", self.reading_date],
-                    "amended_from": ["is", "not set"]
+                    "name": ["!=", self.name]
                 },
                 fields=[
                     "reading_date", "bnw_count", "color_count",
@@ -84,7 +81,6 @@ class CounterReading(Document):
                 limit=1
             )
 
-        # ✅ Get previous record details
         if previous_read_record:
             prev_rec = previous_read_record[0]
             prev_date = getdate(prev_rec.reading_date)
@@ -110,7 +106,7 @@ class CounterReading(Document):
             days = date_diff(current_read_date, prev_date)
             if days < 25:
                 frappe.throw(
-                    f"At least 25 days is required, since the last reading. Currently, only {days} days have passed."
+                    f"At least 25 days is required. Currently only {days} days have passed."
                 )
 
         else:
@@ -120,7 +116,6 @@ class CounterReading(Document):
             days = 0
             self.opening_date = self.reading_date
 
-        # ✅ Validate reading counts not decreasing
         if self.bnw_count <= prev_bnw:
             frappe.throw(f"BnW reading ({self.bnw_count}) must be higher than previous ({prev_bnw})")
         if self.color_count <= prev_color:
@@ -156,7 +151,6 @@ class CounterReading(Document):
         bnw_used_a5 = max(0, bnw_used_a5)
         color_used_a5 = max(0, color_used_a5)
 
-        # ✅ Store consumption values
         self.bnw_consumption = bnw_used
         self.color_consumption = color_used
         self.current_bnw_consumption_a3 = bnw_used_a3
@@ -164,12 +158,10 @@ class CounterReading(Document):
         self.current_bnw_consumptiona5 = bnw_used_a5
         self.current_color_consumptiona5 = color_used_a5
 
-        # ✅ Store previous readings
         self.previous_bnw = prev_bnw
         self.previous_color = prev_color
         self.previous_reading_date = prev_date
 
-        # ✅ Store previous consumption values
         self.previous_bnw_consumptiona4 = prev_bnw_consumption
         self.previous_color_consumptiona4 = prev_color_consumption
         self.previous_bnw_consumptiona3 = prev_bnw_consumption_a3
@@ -177,23 +169,19 @@ class CounterReading(Document):
         self.previous_bnw_consumptiona5 = prev_bnw_consumption_a5
         self.previous_color_consumptiona5 = prev_color_consumption_a5
 
-        # ✅ Fetch contract
         contract = frappe.get_doc("Printer Contract", self.contract)
         is_combined = contract.combined or 0
 
-        # ✅ Total consumption
         total_bnw = bnw_used + bnw_used_a3 + bnw_used_a5
         total_color = color_used + color_used_a3 + color_used_a5
 
         if is_combined:
-            # ============================================================
-            # COMBINED BILLING
-            # ============================================================
             free_combined = contract.combined_free_copies or 0
             combined_rate = contract.combined_excess_rate or 0
 
             if not previous_read_record:
                 allowed_combined = free_combined
+                prorated_combined = 0
             else:
                 prorated_combined = (free_combined / 30) * days
                 allowed_combined = math.floor(prorated_combined)
@@ -201,7 +189,6 @@ class CounterReading(Document):
             total_all = total_bnw + total_color
             combined_billable = max(0, total_all - allowed_combined)
 
-            # Split combined billable — BnW & Color proportion
             if total_all > 0 and combined_billable > 0:
                 bnw_combined_billable = int(combined_billable * (total_bnw / total_all))
                 color_combined_billable = int(combined_billable) - bnw_combined_billable
@@ -214,12 +201,9 @@ class CounterReading(Document):
             self.prorated_combined_free_copies = allowed_combined
             self.excess_combined_billable_consumption = int(combined_billable)
             self.excess_combined_amount = combined_amount
-
-            # Store split for invoice
             self.bnw_combined_billable = bnw_combined_billable
             self.color_combined_billable = color_combined_billable
 
-            # Clear normal billing fields
             self.prorated_bnw = 0
             self.prorated_color = 0
             self.bnw_billable = 0
@@ -232,9 +216,6 @@ class CounterReading(Document):
             self.a5_color_billable = 0
 
         else:
-            # ============================================================
-            # NORMAL BILLING
-            # ============================================================
             free_bnw = contract.monthly_free_copies_bnw or 0
             free_color = contract.monthly_free_copies_color or 0
             bnw_rate = contract.extra_rate_bnw or 0
@@ -254,7 +235,6 @@ class CounterReading(Document):
             self.prorated_bnw = round(prorated_bnw, 3)
             self.prorated_color = round(prorated_color, 3)
 
-            # ✅ BnW billable breakdown
             bnw_billable_total = max(0, total_bnw - allowed_bnw_calc)
 
             if total_bnw > 0 and bnw_billable_total > 0:
@@ -271,7 +251,6 @@ class CounterReading(Document):
             self.a3_bnw_billable = int(a3_bnw_billable)
             self.a5_bnw_billable = int(a5_bnw_billable)
 
-            # ✅ Color billable breakdown
             color_billable_total = max(0, total_color - allowed_color_calc)
 
             if total_color > 0 and color_billable_total > 0:
@@ -288,7 +267,6 @@ class CounterReading(Document):
             self.a3_color_billable = int(a3_color_billable)
             self.a5_color_billable = int(a5_color_billable)
 
-            # Clear combined billing fields
             self.prorated_combined_free_copies = 0
             self.excess_combined_billable_consumption = 0
             self.excess_combined_amount = 0
@@ -301,16 +279,112 @@ class CounterReading(Document):
 
 
     def generate_invoice(self):
-
         contract_doc = frappe.get_doc("Printer Contract", self.contract)
         is_combined = contract_doc.combined or 0
+        
+        old_invoice_name = None
+        
+        if self.amended_from:
+            old_doc = frappe.get_doc("Counter Reading",self.amended_from)
+            
+            old_invoice_name = ( old_doc.combined_invoice
+            if is_combined
+            else old_doc.invoice)
+        
+        if old_invoice_name:
+            try:
+                old_inv = frappe.get_doc("Sales Invoice", old_invoice_name)
+
+
+                if old_inv.docstatus == 0:
+                    old_inv.items = []
+                    old_inv.posting_date = self.reading_date
+                    old_inv.custom_opening_date = self.opening_date
+
+                    if is_combined:
+                        total_bnw = (self.bnw_consumption or 0) + (self.current_bnw_consumption_a3 or 0) + (self.current_bnw_consumptiona5 or 0)
+                        total_color = (self.color_consumption or 0) + (self.current_color_consumption_a3 or 0) + (self.current_color_consumptiona5 or 0)
+                        total_all = total_bnw + total_color
+                        combined_billable = int(self.excess_combined_billable_consumption or 0)
+
+                        if total_all > 0 and combined_billable > 0:
+                            bnw_qty = int(combined_billable * (total_bnw / total_all))
+                            color_qty = combined_billable - bnw_qty
+                        else:
+                            bnw_qty = 0
+                            color_qty = 0
+
+                        if total_bnw > 0 and bnw_qty > 0:
+                            a4_bnw_desc = int(bnw_qty * ((self.bnw_consumption or 0) / total_bnw))
+                            a3_bnw_desc = int(bnw_qty * ((self.current_bnw_consumption_a3 or 0) / total_bnw))
+                            a5_bnw_desc = bnw_qty - a4_bnw_desc - a3_bnw_desc
+                        else:
+                            a4_bnw_desc = a3_bnw_desc = a5_bnw_desc = 0
+
+                        if total_color > 0 and color_qty > 0:
+                            a4_color_desc = int(color_qty * ((self.color_consumption or 0) / total_color))
+                            a3_color_desc = int(color_qty * ((self.current_color_consumption_a3 or 0) / total_color))
+                            a5_color_desc = color_qty - a4_color_desc - a3_color_desc
+                        else:
+                            a4_color_desc = a3_color_desc = a5_color_desc = 0
+
+                        if bnw_qty > 0:
+                            old_inv.append("items", {
+                                "item_code": "A4 BnW",
+                                "description": f"Additional Combined Print BnW — A4 BnW({a4_bnw_desc}), A3 BnW({a3_bnw_desc}), A5 BnW({a5_bnw_desc})",
+                                "qty": bnw_qty,
+                                "rate": contract_doc.combined_excess_rate
+                            })
+                        if color_qty > 0:
+                            old_inv.append("items", {
+                                "item_code": "A4 Color",
+                                "description": f"Additional Combined Print Color — A4 Color({a4_color_desc}), A3 Color({a3_color_desc}), A5 Color({a5_color_desc})",
+                                "qty": color_qty,
+                                "rate": contract_doc.combined_excess_rate
+                            })
+
+                    else:
+                        if self.bnw_billable > 0:
+                            old_inv.append("items", {
+                                "item_code": "A4 BnW",
+                                "description": f"Additional Print A4 BnW({self.a4_bnw_billable}), A3 BnW({self.a3_bnw_billable}), A5 BnW({self.a5_bnw_billable})",
+                                "qty": self.bnw_billable,
+                                "rate": contract_doc.extra_rate_bnw
+                            })
+                        if self.color_billable > 0:
+                            old_inv.append("items", {
+                                "item_code": "A4 Color",
+                                "description": f"Additional Print A4 Color({self.a4_color_billable}), A3 Color({self.a3_color_billable}), A5 Color({self.a5_color_billable})",
+                                "qty": self.color_billable,
+                                "rate": contract_doc.extra_rate_color
+                            })
+
+                    old_inv.save()
+                    frappe.msgprint(f"Invoice {old_invoice_name} updated successfully ✅")
+
+                    if is_combined:
+                        self.combined_invoice = old_invoice_name
+                    else:
+                        self.invoice = old_invoice_name
+                    self.db_update()
+                    return  # ✅ New invoice வேண்டாம்
+
+                elif old_inv.docstatus == 1:
+                    old_inv.cancel()
+                    frappe.msgprint(f"Previous submitted invoice {old_invoice_name} cancelled")
+                    if is_combined:
+                        self.combined_invoice = None
+                    else:
+                        self.invoice = None
+
+            except Exception as e:
+                frappe.log_error(str(e), "Invoice Update Error")
+                frappe.msgprint(f"⚠ Could not update invoice: {str(e)}")
 
         if is_combined:
             # ============================================================
             # COMBINED INVOICE
             # ============================================================
-
-            # Avoid duplicate
             if self.combined_invoice:
                 frappe.msgprint(f"Combined Invoice already created: {self.combined_invoice}")
                 return
@@ -319,7 +393,6 @@ class CounterReading(Document):
                 frappe.msgprint("No billable copies to invoice.")
                 return
 
-            # Recalculate split from actual consumption
             total_bnw = (self.bnw_consumption or 0) + (self.current_bnw_consumption_a3 or 0) + (self.current_bnw_consumptiona5 or 0)
             total_color = (self.color_consumption or 0) + (self.current_color_consumption_a3 or 0) + (self.current_color_consumptiona5 or 0)
             total_all = total_bnw + total_color
@@ -332,7 +405,6 @@ class CounterReading(Document):
                 bnw_qty = 0
                 color_qty = 0
 
-            # BnW description split
             if total_bnw > 0 and bnw_qty > 0:
                 a4_bnw_desc = int(bnw_qty * ((self.bnw_consumption or 0) / total_bnw))
                 a3_bnw_desc = int(bnw_qty * ((self.current_bnw_consumption_a3 or 0) / total_bnw))
@@ -340,7 +412,6 @@ class CounterReading(Document):
             else:
                 a4_bnw_desc = a3_bnw_desc = a5_bnw_desc = 0
 
-            # Color description split
             if total_color > 0 and color_qty > 0:
                 a4_color_desc = int(color_qty * ((self.color_consumption or 0) / total_color))
                 a3_color_desc = int(color_qty * ((self.current_color_consumption_a3 or 0) / total_color))
@@ -396,8 +467,6 @@ class CounterReading(Document):
             # ============================================================
             # NORMAL INVOICE
             # ============================================================
-
-            # Avoid duplicate
             if self.invoice:
                 frappe.msgprint(f"Invoice already created: {self.invoice}")
                 return
