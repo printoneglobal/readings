@@ -8,6 +8,7 @@
  "field_order": [
   "combined_contract_section",
   "combined",
+  "combined_machine_contract",
   "contract_details_section",
   "customer",
   "machine_serial",
@@ -24,7 +25,13 @@
   "combined_contract_details_section",
   "combined_free_copies",
   "column_break_rlgm",
-  "combined_excess_rate"
+  "combined_excess_rate",
+  "combined_machine_contract_details_section",
+  "total_free_copies",
+  "individual_entitlement",
+  "column_break_awsx",
+  "total_unit",
+  "combined_machine_excess_rate"
  ],
  "fields": [
   {
@@ -105,7 +112,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Naming Series",
-   "options": ".machine_serial.-PC-.####"
+   "options": ".{customer}.-PC-.####"
   },
   {
    "fieldname": "combined_contract_details_section",
@@ -125,12 +132,47 @@
    "fieldname": "combined_excess_rate",
    "fieldtype": "Currency",
    "label": "Combined Excess Rate"
+  },
+  {
+   "default": "0",
+   "fieldname": "combined_machine_contract",
+   "fieldtype": "Check",
+   "label": "Combined Machine Contract?"
+  },
+  {
+   "fieldname": "combined_machine_contract_details_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Machine Contract Details"
+  },
+  {
+   "fieldname": "total_free_copies",
+   "fieldtype": "Int",
+   "label": "Combined Machine Free Copies"
+  },
+  {
+   "fieldname": "column_break_awsx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_unit",
+   "fieldtype": "Int",
+   "label": "Total Unit"
+  },
+  {
+   "fieldname": "individual_entitlement",
+   "fieldtype": "Int",
+   "label": "Individual entitlement"
+  },
+  {
+   "fieldname": "combined_machine_excess_rate",
+   "fieldtype": "Currency",
+   "label": "Combined Machine Excess Rate"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-15 20:40:55.932774",
+ "modified": "2026-05-20 17:29:03.621194",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Printer Contract",
