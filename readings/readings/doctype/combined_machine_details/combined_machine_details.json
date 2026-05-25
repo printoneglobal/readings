@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:machine_serial_number_combined",
+ "creation": "2026-05-21 15:11:37.699791",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "combined_machine_details_section",
+  "unique_number_of_machine",
+  "machine_serial_number_combined",
+  "column_break_qfbq",
+  "machine_printer"
+ ],
+ "fields": [
+  {
+   "fieldname": "combined_machine_details_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Machine Details"
+  },
+  {
+   "fieldname": "unique_number_of_machine",
+   "fieldtype": "Data",
+   "label": "Unique number of machine"
+  },
+  {
+   "fieldname": "column_break_qfbq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "machine_printer",
+   "fieldtype": "Link",
+   "label": "Printer contract",
+   "link_filters": "[[\"Printer Contract\", \"combined_machine_contract\", \"=\", 1]]",
+   "options": "Printer Contract"
+  },
+  {
+   "fieldname": "machine_serial_number_combined",
+   "fieldtype": "Data",
+   "label": "Machine Serial Number",
+   "unique": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-22 22:46:06.364275",
+ "modified_by": "Administrator",
+ "module": "Readings",
+ "name": "Combined Machine Details",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "unique_number_of_machine"
+}

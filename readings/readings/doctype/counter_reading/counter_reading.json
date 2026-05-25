@@ -9,9 +9,10 @@
   "customer_details_section",
   "customer",
   "reading_date",
+  "previous_reading_date",
   "column_break_plaf",
   "contract",
-  "previous_reading_date",
+  "machine_serial_number",
   "opening_date",
   "reading_details_section",
   "bnw_count",
@@ -51,6 +52,16 @@
   "color_billable",
   "color_amount",
   "invoice",
+  "combined_machine_billing_calculation__bnw_and_white_section",
+  "prorated_individual_entitlement_for_bnw",
+  "excess_bnw_actual_consumption",
+  "excess_bnw_billable_amount",
+  "no_of_days_1",
+  "column_break_nupk",
+  "prorated_individual_entitlement_for_color",
+  "excess_color_actual_consumption",
+  "excess_color_billable_amount",
+  "scenario_b_invoice",
   "section_break_eos1",
   "prorated_combined_free_copies",
   "excess_combined_billable_consumption",
@@ -58,6 +69,14 @@
   "no_of_days_consumed",
   "excess_combined_amount",
   "combined_invoice",
+  "combined_machine_billing_calculation_section",
+  "actual_consumption",
+  "prorated_entitlement",
+  "combined_no_of_days",
+  "column_break_ikve",
+  "actual_excess_after_all_readings",
+  "billable_amount",
+  "machine_invoice",
   "section_break_xfdk",
   "amended_from"
  ],
@@ -362,18 +381,130 @@
    "fieldname": "combined_invoice",
    "fieldtype": "Link",
    "label": "Invoice",
-   "options": "Sales Invoice"
+   "options": "Sales Invoice",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_xfdk",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "machine_serial_number",
+   "fieldtype": "Link",
+   "label": "Machine serial number",
+   "link_filters": "[[\"Combine Machine Details\", \"machine_printer\", \"=\", \"eval:doc.contract\"]]",
+   "options": "Combined Machine Details"
+  },
+  {
+   "fieldname": "combined_machine_billing_calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Machine Billing Calculation"
+  },
+  {
+   "fieldname": "actual_consumption",
+   "fieldtype": "Int",
+   "label": "Actual Consumption",
+   "read_only": 1
+  },
+  {
+   "fieldname": "combined_no_of_days",
+   "fieldtype": "Int",
+   "label": "No of Days Consumed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ikve",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_excess_after_all_readings",
+   "fieldtype": "Int",
+   "label": "Actual Excess after all readings ",
+   "read_only": 1
+  },
+  {
+   "fieldname": "billable_amount",
+   "fieldtype": "Currency",
+   "label": "Billable amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "machine_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "prorated_entitlement",
+   "fieldtype": "Int",
+   "label": "Prorated Entitlement",
+   "read_only": 1
+  },
+  {
+   "fieldname": "combined_machine_billing_calculation__bnw_and_white_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Machine Billing Calculation - BnW and White"
+  },
+  {
+   "fieldname": "prorated_individual_entitlement_for_bnw",
+   "fieldtype": "Int",
+   "label": "Prorated Individual Entitlement for BnW",
+   "read_only": 1
+  },
+  {
+   "fieldname": "excess_bnw_actual_consumption",
+   "fieldtype": "Int",
+   "label": "Excess BnW Actual Consumption",
+   "read_only": 1
+  },
+  {
+   "fieldname": "excess_bnw_billable_amount",
+   "fieldtype": "Currency",
+   "label": "Excess BnW Billable amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "no_of_days_1",
+   "fieldtype": "Int",
+   "label": "No of Days Consumed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_nupk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "prorated_individual_entitlement_for_color",
+   "fieldtype": "Int",
+   "label": "Prorated Individual Entitlement for Color",
+   "read_only": 1
+  },
+  {
+   "fieldname": "excess_color_actual_consumption",
+   "fieldtype": "Int",
+   "label": "Excess Color Actual Consumption",
+   "read_only": 1
+  },
+  {
+   "fieldname": "excess_color_billable_amount",
+   "fieldtype": "Currency",
+   "label": "Excess Color Billable Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "scenario_b_invoice",
+   "fieldtype": "Link",
+   "label": "Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-05-19 16:35:40.322953",
+ "modified": "2026-05-23 16:05:52.997676",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Counter Reading",

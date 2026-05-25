@@ -8,6 +8,7 @@
  "field_order": [
   "combined_contract_section",
   "combined",
+  "column_break_zxwh",
   "combined_machine_contract",
   "contract_details_section",
   "customer",
@@ -26,12 +27,21 @@
   "combined_free_copies",
   "column_break_rlgm",
   "combined_excess_rate",
+  "combined_machine_bnw_and_color_details_section",
+  "total_free_copies_bnw",
+  "individual_entitlement_for_bnw",
+  "excess_rate_bnw",
+  "total_unit_1",
+  "column_break_treq",
+  "total_free_copies_color",
+  "individual_entitlement_for_color",
+  "excess_rate_color",
   "combined_machine_contract_details_section",
   "total_free_copies",
   "individual_entitlement",
   "column_break_awsx",
   "total_unit",
-  "combined_machine_excess_rate"
+  "machine_combined_excess_rate"
  ],
  "fields": [
   {
@@ -43,7 +53,7 @@
    "default": "0",
    "fieldname": "combined",
    "fieldtype": "Check",
-   "label": "Combined?"
+   "label": "Combined Printer Contract?"
   },
   {
    "fieldname": "contract_details_section",
@@ -159,20 +169,68 @@
    "label": "Total Unit"
   },
   {
-   "fieldname": "individual_entitlement",
-   "fieldtype": "Int",
-   "label": "Individual entitlement"
+   "fieldname": "column_break_zxwh",
+   "fieldtype": "Column Break"
   },
   {
-   "fieldname": "combined_machine_excess_rate",
+   "fieldname": "individual_entitlement",
+   "fieldtype": "Int",
+   "label": "Individual Entitlement"
+  },
+  {
+   "fieldname": "machine_combined_excess_rate",
    "fieldtype": "Currency",
-   "label": "Combined Machine Excess Rate"
+   "label": "Combined Excess Rate"
+  },
+  {
+   "fieldname": "combined_machine_bnw_and_color_details_section",
+   "fieldtype": "Section Break",
+   "label": "Combined Machine BnW and Color Details"
+  },
+  {
+   "fieldname": "total_free_copies_bnw",
+   "fieldtype": "Int",
+   "label": "Total Free Copies BnW"
+  },
+  {
+   "fieldname": "individual_entitlement_for_bnw",
+   "fieldtype": "Int",
+   "label": "Individual Entitlement for BnW"
+  },
+  {
+   "fieldname": "excess_rate_bnw",
+   "fieldtype": "Currency",
+   "label": "Excess Rate BnW"
+  },
+  {
+   "fieldname": "total_unit_1",
+   "fieldtype": "Int",
+   "label": "Total Unit"
+  },
+  {
+   "fieldname": "column_break_treq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_free_copies_color",
+   "fieldtype": "Int",
+   "label": "Total Free Copies Color"
+  },
+  {
+   "fieldname": "individual_entitlement_for_color",
+   "fieldtype": "Int",
+   "label": "Individual Entitlement for Color"
+  },
+  {
+   "fieldname": "excess_rate_color",
+   "fieldtype": "Currency",
+   "label": "Excess Rate Color"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-20 17:29:03.621194",
+ "modified": "2026-05-23 00:10:12.095364",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Printer Contract",
