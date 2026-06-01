@@ -341,14 +341,12 @@ class CounterReading(Document):
 
             bnw_billable_total = max(0, total_bnw - allowed_bnw_calc)
 
-            if total_bnw > 0 and bnw_billable_total > 0:
-                a4_bnw_billable = int(bnw_billable_total * (bnw_used    / total_bnw))
-                a3_bnw_billable = int(bnw_billable_total * (bnw_used_a3 / total_bnw))
-                a5_bnw_billable = int(bnw_billable_total) - a4_bnw_billable - a3_bnw_billable
-            else:
-                a4_bnw_billable = 0
-                a3_bnw_billable = 0
-                a5_bnw_billable = 0
+            a4_bnw_billable, a3_bnw_billable, a5_bnw_billable = (
+                self._split_billable_by_consumption(
+                    bnw_billable_total,
+                    [bnw_used, bnw_used_a3, bnw_used_a5]
+                )
+            )
 
             self.bnw_billable    = int(bnw_billable_total)
             self.a4_bnw_billable = int(a4_bnw_billable)
@@ -357,14 +355,12 @@ class CounterReading(Document):
 
             color_billable_total = max(0, total_color - allowed_color_calc)
 
-            if total_color > 0 and color_billable_total > 0:
-                a4_color_billable = int(color_billable_total * (color_used    / total_color))
-                a3_color_billable = int(color_billable_total * (color_used_a3 / total_color))
-                a5_color_billable = int(color_billable_total) - a4_color_billable - a3_color_billable
-            else:
-                a4_color_billable = 0
-                a3_color_billable = 0
-                a5_color_billable = 0
+            a4_color_billable, a3_color_billable, a5_color_billable = (
+                self._split_billable_by_consumption(
+                    color_billable_total,
+                    [color_used, color_used_a3, color_used_a5]
+                )
+            )
 
             self.color_billable    = math.floor(color_billable_total)
             self.a4_color_billable = int(a4_color_billable)
@@ -475,6 +471,42 @@ class CounterReading(Document):
             frappe.msgprint(f"Invoice {invoice.name} created successfully")
 
 
+    def _split_billable_by_consumption(self, billable_qty, consumptions):
+        billable_qty = int(max(0, billable_qty or 0))
+        positive_consumptions = [max(0, c or 0) for c in consumptions]
+        total_consumption = sum(positive_consumptions)
+
+        if billable_qty <= 0 or total_consumption <= 0:
+            return [0 for _ in positive_consumptions]
+
+        raw_allocations = [
+            (billable_qty * consumption / total_consumption) if consumption > 0 else 0
+            for consumption in positive_consumptions
+        ]
+        allocations = [math.floor(qty) for qty in raw_allocations]
+        remainder = billable_qty - sum(allocations)
+
+        remainder_order = sorted(
+            range(len(raw_allocations)),
+            key=lambda i: (
+                positive_consumptions[i] > 0,
+                raw_allocations[i] - allocations[i],
+                positive_consumptions[i]
+            ),
+            reverse=True
+        )
+
+        for index in remainder_order:
+            if remainder <= 0:
+                break
+            if positive_consumptions[index] <= 0:
+                continue
+            allocations[index] += 1
+            remainder -= 1
+
+        return allocations
+
+
     def _append_invoice_items(self, invoice, contract_doc, is_combined):
         if is_combined:
             total_bnw   = (self.bnw_consumption or 0) + (self.current_bnw_consumption_a3 or 0) + (self.current_bnw_consumptiona5 or 0)
@@ -488,19 +520,22 @@ class CounterReading(Document):
             else:
                 bnw_qty = color_qty = 0
 
-            if total_bnw > 0 and bnw_qty > 0:
-                a4_bnw = int(bnw_qty * ((self.bnw_consumption or 0) / total_bnw))
-                a3_bnw = int(bnw_qty * ((self.current_bnw_consumption_a3 or 0) / total_bnw))
-                a5_bnw = bnw_qty - a4_bnw - a3_bnw
-            else:
-                a4_bnw = a3_bnw = a5_bnw = 0
-
-            if total_color > 0 and color_qty > 0:
-                a4_color = int(color_qty * ((self.color_consumption or 0) / total_color))
-                a3_color = int(color_qty * ((self.current_color_consumption_a3 or 0) / total_color))
-                a5_color = color_qty - a4_color - a3_color
-            else:
-                a4_color = a3_color = a5_color = 0
+            a4_bnw, a3_bnw, a5_bnw = self._split_billable_by_consumption(
+                bnw_qty,
+                [
+                    self.bnw_consumption or 0,
+                    self.current_bnw_consumption_a3 or 0,
+                    self.current_bnw_consumptiona5 or 0
+                ]
+            )
+            a4_color, a3_color, a5_color = self._split_billable_by_consumption(
+                color_qty,
+                [
+                    self.color_consumption or 0,
+                    self.current_color_consumption_a3 or 0,
+                    self.current_color_consumptiona5 or 0
+                ]
+            )
 
             if bnw_qty > 0:
                 invoice.append("items", {
@@ -561,6 +596,12 @@ class CounterReading(Document):
             ]
         )
 
+        old_invoice_name = None
+        if self.amended_from:
+            old_doc = frappe.get_doc("Counter Reading", self.amended_from)
+            if old_doc.machine_invoice and old_doc.machine_invoice != "No Excess":
+                old_invoice_name = old_doc.machine_invoice
+
         # Not all units submitted yet — wait
         if len(submitted_readings) < total_unit:
             frappe.msgprint(
@@ -569,9 +610,13 @@ class CounterReading(Document):
             )
             return
 
-        # Already invoiced — skip
-        already_invoiced = any(r.machine_invoice for r in submitted_readings)
-        if already_invoiced:
+        # Already invoiced — skip unless this is amending that same invoice
+        invoice_names = {
+            r.machine_invoice
+            for r in submitted_readings
+            if r.machine_invoice and r.machine_invoice != "No Excess"
+        }
+        if invoice_names and (not old_invoice_name or invoice_names - {old_invoice_name}):
             frappe.msgprint("Invoice already created for this period.")
             return
 
@@ -651,22 +696,53 @@ class CounterReading(Document):
 
         # No billable — no invoice
         if total_billable_amount <= 0:
+            if old_invoice_name:
+                try:
+                    old_invoice = frappe.get_doc("Sales Invoice", old_invoice_name)
+                    if old_invoice.docstatus == 1:
+                        old_invoice.cancel()
+                        frappe.msgprint(f"Previous submitted invoice {old_invoice_name} cancelled")
+                    elif old_invoice.docstatus == 0:
+                        old_invoice.delete()
+                        frappe.msgprint(f"Previous draft invoice {old_invoice_name} deleted")
+                except Exception as e:
+                    frappe.log_error(str(e), "Machine Invoice Amend Error")
+                    frappe.msgprint(f"Could not clear previous machine invoice: {str(e)}")
             frappe.msgprint("No billable amount for this period — all machines within entitlement.")
             for r in submitted_readings:
                 frappe.db.set_value("Counter Reading", r.name, "machine_invoice", "No Excess")
             return
 
         # ============================================================
-        # CREATE INVOICE
+        # CREATE / UPDATE INVOICE
         # ============================================================
-        invoice = frappe.get_doc({
-            "doctype":      "Sales Invoice",
-            "customer":     self.customer,
-            "posting_date": self.reading_date,
-            "due_date":     None,
-            "items":        []
-        })
-        invoice.custom_opening_date = self.opening_date
+        invoice = None
+        if old_invoice_name:
+            try:
+                old_invoice = frappe.get_doc("Sales Invoice", old_invoice_name)
+                if old_invoice.docstatus == 0:
+                    invoice = old_invoice
+                    invoice.items = []
+                    invoice.customer = self.customer
+                    invoice.posting_date = self.reading_date
+                    invoice.due_date = None
+                    invoice.custom_opening_date = self.opening_date
+                elif old_invoice.docstatus == 1:
+                    old_invoice.cancel()
+                    frappe.msgprint(f"Previous submitted invoice {old_invoice_name} cancelled")
+            except Exception as e:
+                frappe.log_error(str(e), "Machine Invoice Amend Error")
+                frappe.msgprint(f"Could not update previous machine invoice: {str(e)}")
+
+        if not invoice:
+            invoice = frappe.get_doc({
+                "doctype":      "Sales Invoice",
+                "customer":     self.customer,
+                "posting_date": self.reading_date,
+                "due_date":     None,
+                "items":        []
+            })
+            invoice.custom_opening_date = self.opening_date
 
         for i, r in enumerate(submitted_readings):
             billable = billable_excesses[i]
@@ -684,7 +760,8 @@ class CounterReading(Document):
                     "rate": excess_rate
                 })
 
-        invoice.insert()
+        if invoice.is_new():
+            invoice.insert()
         invoice.save()
 
         for r in submitted_readings:
@@ -728,6 +805,12 @@ class CounterReading(Document):
             ]
         )
 
+        old_invoice_name = None
+        if self.amended_from:
+            old_doc = frappe.get_doc("Counter Reading", self.amended_from)
+            if old_doc.scenario_b_invoice and old_doc.scenario_b_invoice != "No Excess":
+                old_invoice_name = old_doc.scenario_b_invoice
+
         if len(submitted_readings) < total_unit:
             frappe.msgprint(
                 f"{len(submitted_readings)} of {total_unit} printer machines submitted. "
@@ -735,7 +818,12 @@ class CounterReading(Document):
             )
             return
 
-        if any(r.scenario_b_invoice for r in submitted_readings):
+        invoice_names = {
+            r.scenario_b_invoice
+            for r in submitted_readings
+            if r.scenario_b_invoice and r.scenario_b_invoice != "No Excess"
+        }
+        if invoice_names and (not old_invoice_name or invoice_names - {old_invoice_name}):
             frappe.msgprint("Scenario B invoice already created for this period.")
             return
 
@@ -789,19 +877,50 @@ class CounterReading(Document):
             })
 
         if total_billable_amount <= 0:
+            if old_invoice_name:
+                try:
+                    old_invoice = frappe.get_doc("Sales Invoice", old_invoice_name)
+                    if old_invoice.docstatus == 1:
+                        old_invoice.cancel()
+                        frappe.msgprint(f"Previous submitted invoice {old_invoice_name} cancelled")
+                    elif old_invoice.docstatus == 0:
+                        old_invoice.delete()
+                        frappe.msgprint(f"Previous draft invoice {old_invoice_name} deleted")
+                except Exception as e:
+                    frappe.log_error(str(e), "Scenario B Invoice Amend Error")
+                    frappe.msgprint(f"Could not clear previous Scenario B invoice: {str(e)}")
             frappe.msgprint("No billable amount for this period — all machines within entitlement.")
             for r in submitted_readings:
                 frappe.db.set_value("Counter Reading", r.name, "scenario_b_invoice", "No Excess")
             return
 
-        invoice = frappe.get_doc({
-            "doctype": "Sales Invoice",
-            "customer": self.customer,
-            "posting_date": self.reading_date,
-            "due_date": None,
-            "items": []
-        })
-        invoice.custom_opening_date = self.opening_date
+        invoice = None
+        if old_invoice_name:
+            try:
+                old_invoice = frappe.get_doc("Sales Invoice", old_invoice_name)
+                if old_invoice.docstatus == 0:
+                    invoice = old_invoice
+                    invoice.items = []
+                    invoice.customer = self.customer
+                    invoice.posting_date = self.reading_date
+                    invoice.due_date = None
+                    invoice.custom_opening_date = self.opening_date
+                elif old_invoice.docstatus == 1:
+                    old_invoice.cancel()
+                    frappe.msgprint(f"Previous submitted invoice {old_invoice_name} cancelled")
+            except Exception as e:
+                frappe.log_error(str(e), "Scenario B Invoice Amend Error")
+                frappe.msgprint(f"Could not update previous Scenario B invoice: {str(e)}")
+
+        if not invoice:
+            invoice = frappe.get_doc({
+                "doctype": "Sales Invoice",
+                "customer": self.customer,
+                "posting_date": self.reading_date,
+                "due_date": None,
+                "items": []
+            })
+            invoice.custom_opening_date = self.opening_date
 
         for i, r in enumerate(submitted_readings):
             if bnw_billable_excesses[i] > 0:
@@ -831,7 +950,8 @@ class CounterReading(Document):
                     "rate": color_rate
                 })
 
-        invoice.insert()
+        if invoice.is_new():
+            invoice.insert()
         invoice.save()
 
         for r in submitted_readings:

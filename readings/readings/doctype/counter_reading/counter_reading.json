@@ -448,7 +448,7 @@
   },
   {
    "fieldname": "prorated_individual_entitlement_for_bnw",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "label": "Prorated Individual Entitlement for BnW",
    "read_only": 1
   },
@@ -504,7 +504,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-05-23 16:05:52.997676",
+ "modified": "2026-05-27 18:02:52.697073",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Counter Reading",
