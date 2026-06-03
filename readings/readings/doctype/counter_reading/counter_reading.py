@@ -1188,7 +1188,7 @@ class CounterReading(Document):
             filters={
                 "customer":           self.customer,
                 "is_standby_reading": 1,
-                "docstatus":          1,
+                "docstatus":          ["=", 1],
                 "name":               ["!=", self.name]
             },
             fields=[
@@ -1224,10 +1224,23 @@ class CounterReading(Document):
         all_standby_readings.append(current)
 
         # Only uninvoiced readings
+        # Only uninvoiced readings — exclude opening/anchor reading (exchange_date reading)
+        orig_contract_doc = frappe.get_doc("Printer Contract", original_contract_name)
+        is_combined   = orig_contract_doc.combined or 0
+        invoice_field = "combined_invoice" if is_combined else "invoice"
+
+        # Find first standby machine reading — this is opening/anchor, exclude from billing
+        standby_machine_readings = [
+            r for r in all_standby_readings
+            if r.get("reading_machine_type") == "Standby"
+            ]
+        first_standby_reading_name = standby_machine_readings[0]["name"] if standby_machine_readings else None
+        
         uninvoiced = [
             r for r in all_standby_readings
-            if not r.get("invoice") or r.get("invoice") in ("Pending", "", None)
-        ]
+            if (not r.get("invoice") or r.get("invoice") in ("Pending", "", None))
+            and r["name"] != first_standby_reading_name
+            ]
 
         # Sum days and consumption across all uninvoiced standby readings
         total_days  = 0
