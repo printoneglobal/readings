@@ -42,6 +42,54 @@ class CounterReading(Document):
         is_bnw_color_machine = (not is_combined) and (contract.combined_machine_contract or 0)
 
         # ============================================================
+        # BLOCK NORMAL READING IF STANDBY CYCLE IS INCOMPLETE
+        # ============================================================
+        if not self.is_standby_reading:
+            # Check if there's an incomplete standby cycle for this contract
+            pending_standby = frappe.get_all(
+                "Counter Reading",
+                filters={
+                    "contract":             self.contract,
+                    "is_standby_reading":   1,
+                    "reading_machine_type": "Standby",
+                    "docstatus":            ["!=", 1],   # not yet submitted
+                    "name":                 ["!=", self.name]
+                },
+                fields=["name"],
+                limit=1
+            )
+            # Also check if Original standby submitted but Standby not yet submitted
+            orig_standby_submitted = frappe.get_all(
+                "Counter Reading",
+                filters={
+                    "contract":             self.contract,
+                    "is_standby_reading":   1,
+                    "reading_machine_type": "Original",
+                    "docstatus":            1
+                },
+                fields=["name"],
+                limit=1
+            )
+            standby_submitted = frappe.get_all(
+                "Counter Reading",
+                filters={
+                    "contract":             self.contract,
+                    "is_standby_reading":   1,
+                    "reading_machine_type": "Standby",
+                    "docstatus":            1
+                },
+                fields=["name"],
+                limit=1
+            )
+            if orig_standby_submitted and not standby_submitted:
+                frappe.throw(
+                    "A standby cycle is in progress for this contract. "
+                    "Please complete the Standby machine reading before creating "
+                    "a new normal reading."
+                )
+
+
+        # ============================================================
         # PREVIOUS READING FILTER
         # ============================================================
         machine_filter = {}
@@ -128,10 +176,8 @@ class CounterReading(Document):
                 )
 
             days = date_diff(current_read_date, prev_date)
-            if days < 25:
-                frappe.throw(
-                    f"At least 25 days is required. Currently only {days} days have passed."
-                )
+            if days < 25 and not self.is_standby_reading:
+                frappe.throw(f"At least 25 days is required. Currently only {days} days have passed.")
 
         else:
             prev_date     = None
@@ -143,6 +189,126 @@ class CounterReading(Document):
             prev_color_a5 = 0
             days          = 0
             self.opening_date = self.reading_date
+         # ============================================================
+        # STANDBY READING VALIDATION
+        # ============================================================
+        if self.is_standby_reading:
+            if not self.reading_machine_type:
+                frappe.throw("Please select a Reading Machine Type (Original or Standby) for standby readings.")
+
+            # Validate that the selected contract's standby_contract flag
+            # matches the reading_machine_type selection
+            if self.reading_machine_type == 'Standby' and not contract.standby_contract:
+                frappe.throw(
+                    f"The selected contract <b>{self.contract}</b> is not a Standby Contract. "
+                    f"Please select a contract with Standby Contract checked."
+                )
+
+            if self.reading_machine_type == 'Original' and contract.standby_contract:
+                frappe.throw(
+                    f"The selected contract <b>{self.contract}</b> is a Standby Contract. "
+                    f"For Original machine type, please select a non-standby contract."
+                )
+
+            # Validate that standby machine belongs to the same customer
+            if self.reading_machine_type == 'Standby' and contract.machine_serial:
+                # Find the original contract for this customer (non-standby)
+                original_contracts = frappe.get_all(
+                    "Printer Contract",
+                    filters={
+                        "customer":          self.customer,
+                        "standby_contract":  0,
+                        "machine_serial":    ["!=", ""]
+                    },
+                    fields=["name", "machine_serial", "customer"]
+                )
+
+                if not original_contracts:
+                    frappe.throw(
+                        f"No original (non-standby) contract found for customer <b>{self.customer}</b>. "
+                        f"A standby machine must belong to a customer who has an original contract."
+                    )
+
+                # Validate the standby machine's customer matches original contract's customer
+                standby_contract_customer = contract.customer
+                original_customers = [c.customer for c in original_contracts]
+
+                if standby_contract_customer not in original_customers:
+                    frappe.throw(
+                        f"The standby machine on contract <b>{self.contract}</b> belongs to customer "
+                        f"<b>{standby_contract_customer}</b>, which does not match the original "
+                        f"contract customer. Standby and original machines must belong to the same customer."
+                    )
+        # ============================================================
+        # STANDBY READING — PREVIOUS DATE / OPENING DATE LOGIC
+        # ============================================================
+        if self.is_standby_reading and self.reading_machine_type == 'Original':
+            if not previous_read_record:
+                # No previous reading — use contract_start_date as anchor
+                if not contract.contract_start_date:
+                    frappe.throw(
+                        "No previous reading found and Contract Start Date is not set "
+                        "in the Printer Contract. Cannot calculate prorated values."
+                    )
+                prev_date    = getdate(contract.contract_start_date)
+                opening_date = add_days(prev_date, 1)
+                self.previous_reading_date = prev_date
+                self.opening_date          = opening_date
+                days = date_diff(current_read_date, prev_date)
+                self.days_difference     = days   # ADD THIS
+                self.no_of_days_consumed = days   # ADD THIS
+                previous_read_record       = ["__standby_anchor__"] 
+                previous_read_record       = ["__standby_anchor__"]
+                frappe.log_error(f"Standby Original: days={days}, prev_date={prev_date}", "Standby Debug")  # ADD THIS
+
+
+        if self.is_standby_reading and self.reading_machine_type == 'Standby':
+            if contract.return_date and getdate(self.reading_date) != getdate(contract.return_date):
+                frappe.throw(
+                    f"For Standby machine reading, the reading date must match "
+                    f"the Return Date ({contract.return_date}) from the Printer Contract."
+                )
+            if contract.exchange_date:
+                standby_prev_date        = getdate(contract.exchange_date)
+                self.opening_date        = add_days(standby_prev_date, 1)
+                self.previous_reading_date = standby_prev_date
+                # Calculate days from exchange_date to return_date
+                days                     = date_diff(current_read_date, standby_prev_date)
+                self.days_difference     = days
+                self.no_of_days_consumed = days
+                previous_read_record       = ["__standby_anchor__"] 
+
+        if self.is_standby_reading and self.reading_machine_type == 'Standby':
+            
+            # Original reading is on the non-standby contract of the same customer
+            original_contract = frappe.get_all(
+                "Printer Contract",
+                filters={
+                    "customer":         self.customer,
+                    "standby_contract": 0
+                },
+                fields=["name"],
+                limit=1
+            )
+            original_contract_name = original_contract[0].name if original_contract else None
+
+            original_standby_reading = frappe.get_all(
+                "Counter Reading",
+                filters={
+                    "contract":             original_contract_name or self.contract,
+                    "is_standby_reading":   1,
+                    "reading_machine_type": "Original",
+                    "docstatus":            1
+                },
+                fields=["name", "reading_date"],
+                limit=1
+            ) if original_contract_name else []
+
+            if not original_standby_reading:
+                frappe.throw(
+                    "Standby cycle is incomplete. Please submit the Original machine "
+                    "standby reading before submitting the Standby machine reading."
+                )
 
         # ============================================================
         # VALIDATE READINGS
@@ -283,7 +449,7 @@ class CounterReading(Document):
             free_combined = contract.combined_free_copies or 0
             combined_rate = contract.combined_excess_rate or 0
 
-            if not previous_read_record:
+            if not previous_read_record and not self.is_standby_reading:
                 allowed_combined  = free_combined
                 prorated_combined = 0
             else:
@@ -325,7 +491,7 @@ class CounterReading(Document):
             bnw_rate   = contract.extra_rate_bnw            or 0
             color_rate = contract.extra_rate_color          or 0
 
-            if not previous_read_record:
+            if not previous_read_record and not self.is_standby_reading:
                 allowed_bnw_calc   = free_bnw
                 allowed_color_calc = free_color
                 prorated_bnw       = 0
@@ -385,6 +551,9 @@ class CounterReading(Document):
 
     def on_submit(self):
         contract = frappe.get_doc("Printer Contract", self.contract)
+        if self.is_standby_reading:
+            self._handle_standby_invoice()
+            return
         if contract.combined and contract.combined_machine_contract:
             self.generate_machine_invoice()
         elif (not contract.combined) and contract.combined_machine_contract:
@@ -987,3 +1156,262 @@ class CounterReading(Document):
             excess_values = next_excess_values
 
         return [int(max(0, e)) for e in excess_values]
+    
+    # ============================================================
+    # STANDBY INVOICE HANDLER
+    # Combines Original + Standby reading days and consumption.
+    # Invoice only generated when combined days >= 30.
+    # Also blocks new normal readings until standby cycle completes.
+    # ============================================================
+    def _handle_standby_invoice(self):
+        contract = frappe.get_doc("Printer Contract", self.contract)
+
+        # Find original contract for this customer
+        original_contract = frappe.get_all(
+            "Printer Contract",
+            filters={
+                "customer":         self.customer,
+                "standby_contract": 0
+            },
+            fields=["name"],
+            limit=1
+        )
+        if not original_contract:
+            frappe.throw(
+                "Cannot find the original (non-standby) contract for this customer."
+            )
+        original_contract_name = original_contract[0].name
+
+        # Fetch ALL submitted standby readings for this customer except current
+        all_standby_readings = frappe.get_all(
+            "Counter Reading",
+            filters={
+                "customer":           self.customer,
+                "is_standby_reading": 1,
+                "docstatus":          1,
+                "name":               ["!=", self.name]
+            },
+            fields=[
+                "name", "reading_date", "opening_date",
+                "reading_machine_type", "contract",
+                "bnw_consumption", "color_consumption",
+                "current_bnw_consumption_a3", "current_color_consumption_a3",
+                "current_bnw_consumptiona5", "current_color_consumptiona5",
+                "days_difference", "no_of_days_consumed",
+                "previous_reading_date", "invoice"
+            ],
+            order_by="reading_date asc"
+        )
+
+        # Include current reading as a dict
+        current = {
+            "name":                         self.name,
+            "reading_date":                 self.reading_date,
+            "opening_date":                 self.opening_date,
+            "reading_machine_type":         self.reading_machine_type,
+            "contract":                     self.contract,
+            "bnw_consumption":              self.bnw_consumption or 0,
+            "color_consumption":            self.color_consumption or 0,
+            "current_bnw_consumption_a3":   self.current_bnw_consumption_a3 or 0,
+            "current_color_consumption_a3": self.current_color_consumption_a3 or 0,
+            "current_bnw_consumptiona5":    self.current_bnw_consumptiona5 or 0,
+            "current_color_consumptiona5":  self.current_color_consumptiona5 or 0,
+            "days_difference":              self.days_difference or 0,
+            "no_of_days_consumed":          self.no_of_days_consumed or 0,
+            "previous_reading_date":        self.previous_reading_date,
+            "invoice":                      self.invoice
+        }
+        all_standby_readings.append(current)
+
+        # Only uninvoiced readings
+        uninvoiced = [
+            r for r in all_standby_readings
+            if not r.get("invoice") or r.get("invoice") in ("Pending", "", None)
+        ]
+
+        # Sum days and consumption across all uninvoiced standby readings
+        total_days  = 0
+        total_bnw   = 0
+        total_color = 0
+
+        for r in uninvoiced:
+            # Always use days_difference — raw days for that reading only
+            # no_of_days_consumed may have been overwritten with accumulated total
+            days_for_reading = r.get("days_difference") or 0
+            total_days  += days_for_reading
+            total_bnw   += (
+                (r.get("bnw_consumption") or 0) +
+                (r.get("current_bnw_consumption_a3") or 0) +
+                (r.get("current_bnw_consumptiona5") or 0)
+            )
+            total_color += (
+                (r.get("color_consumption") or 0) +
+                (r.get("current_color_consumption_a3") or 0) +
+                (r.get("current_color_consumptiona5") or 0)
+            )
+
+        frappe.db.set_value("Counter Reading", self.name, "no_of_days_consumed", total_days)
+
+        # Check 30-day threshold
+        if total_days < 30:
+            frappe.msgprint(
+                f"Combined standby days so far ({total_days}) is less than 30. "
+                f"No invoice generated yet."
+            )
+            frappe.db.set_value("Counter Reading", self.name, "invoice", "Pending")
+            return
+
+        # Use original contract rates
+        orig_contract = frappe.get_doc("Printer Contract", original_contract_name)
+        is_combined   = orig_contract.combined or 0
+        invoice_field = "combined_invoice" if is_combined else "invoice"  # ADD HERE
+
+        if is_combined:
+            free_copies = orig_contract.combined_free_copies or 0
+            excess_rate = orig_contract.combined_excess_rate  or 0
+            prorated    = math.floor((free_copies / 30) * total_days)
+            total_all   = total_bnw + total_color
+            billable    = max(0, total_all - prorated)
+            amount      = round(billable * excess_rate, 2)
+
+            frappe.db.set_value("Counter Reading", self.name, {
+                "prorated_combined_free_copies":        prorated,
+                "excess_combined_billable_consumption": int(billable),
+                "excess_combined_amount":               amount
+            })
+
+            if billable <= 0:
+                frappe.msgprint("No billable copies after prorating. No invoice generated.")
+                frappe.db.set_value("Counter Reading", self.name, invoice_field, "No Excess")
+                return
+
+            invoice = frappe.get_doc({
+                "doctype":      "Sales Invoice",
+                "customer":     self.customer,
+                "posting_date": self.reading_date,
+                "due_date":     None,
+                "items": [{
+                    "item_code":   "A4 BnW",
+                    "description": (
+                        f"Standby Cycle Combined | "
+                        f"Total Days: {total_days} | "
+                        f"Total BnW: {total_bnw} | Total Color: {total_color} | "
+                        f"Prorated Free: {prorated} | Billable: {int(billable)}"
+                    ),
+                    "qty":  int(billable),
+                    "rate": excess_rate
+                }]
+            })
+
+        else:
+            free_bnw     = orig_contract.monthly_free_copies_bnw  or 0
+            free_color   = orig_contract.monthly_free_copies_color or 0
+            bnw_rate     = orig_contract.extra_rate_bnw            or 0
+            color_rate   = orig_contract.extra_rate_color          or 0
+
+            prorated_bnw   = (free_bnw   / 30) * total_days
+            prorated_color = (free_color / 30) * total_days
+            bnw_billable   = max(0, total_bnw   - prorated_bnw)
+            color_billable = max(0, total_color - prorated_color)
+            bnw_amount     = round(math.floor(bnw_billable)   * bnw_rate,   2)
+            color_amount   = round(math.floor(color_billable) * color_rate, 2)
+
+            frappe.db.set_value("Counter Reading", self.name, {
+                "prorated_bnw":   round(prorated_bnw,   3),
+                "prorated_color": round(prorated_color, 3),
+                "bnw_billable":   int(math.floor(bnw_billable)),
+                "color_billable": int(math.floor(color_billable)),
+                "bnw_amount":     bnw_amount,
+                "color_amount":   color_amount
+            })
+
+            if math.floor(bnw_billable) <= 0 and math.floor(color_billable) <= 0:
+                frappe.msgprint("No billable copies after prorating. No invoice generated.")
+                frappe.db.set_value("Counter Reading", self.name, "invoice", "No Excess")
+                return
+
+            invoice = frappe.get_doc({
+                "doctype":      "Sales Invoice",
+                "customer":     self.customer,
+                "posting_date": self.reading_date,
+                "due_date":     None,
+                "items":        []
+            })
+            if math.floor(bnw_billable) > 0:
+                invoice.append("items", {
+                    "item_code":   "A4 BnW",
+                    "description": (
+                        f"Standby Cycle BnW | Total Days: {total_days} | "
+                        f"Combined BnW: {total_bnw} | "
+                        f"Prorated Free: {round(prorated_bnw, 2)} | "
+                        f"Billable: {int(math.floor(bnw_billable))}"
+                    ),
+                    "qty":  int(math.floor(bnw_billable)),
+                    "rate": bnw_rate
+                })
+            if math.floor(color_billable) > 0:
+                invoice.append("items", {
+                    "item_code":   "A4 Color",
+                    "description": (
+                        f"Standby Cycle Color | Total Days: {total_days} | "
+                        f"Combined Color: {total_color} | "
+                        f"Prorated Free: {round(prorated_color, 2)} | "
+                        f"Billable: {int(math.floor(color_billable))}"
+                    ),
+                    "qty":  int(math.floor(color_billable)),
+                    "rate": color_rate
+                })
+
+        invoice.insert()
+        invoice.save()
+
+        # Mark ALL uninvoiced standby readings with this invoice
+        # Mark ALL uninvoiced standby readings with invoice
+        # and update each reading's prorated/billable/amount fields proportionally
+        for r in uninvoiced:
+            r_bnw = (
+                (r.get("bnw_consumption") or 0) +
+                (r.get("current_bnw_consumption_a3") or 0) +
+                (r.get("current_bnw_consumptiona5") or 0)
+            )
+            r_color = (
+                (r.get("color_consumption") or 0) +
+                (r.get("current_color_consumption_a3") or 0) +
+                (r.get("current_color_consumptiona5") or 0)
+            )
+            r_days = r.get("days_difference") or 0
+
+            if not is_combined:
+                r_prorated_bnw   = (free_bnw   / 30) * r_days
+                r_prorated_color = (free_color / 30) * r_days
+                r_bnw_billable   = max(0, r_bnw   - r_prorated_bnw)
+                r_color_billable = max(0, r_color - r_prorated_color)
+                r_bnw_amount     = round(math.floor(r_bnw_billable)   * bnw_rate,   2)
+                r_color_amount   = round(math.floor(r_color_billable) * color_rate, 2)
+
+                frappe.db.set_value("Counter Reading", r["name"], {
+                    "invoice":        invoice.name,
+                    "prorated_bnw":   round(r_prorated_bnw,   3),
+                    "prorated_color": round(r_prorated_color, 3),
+                    "bnw_billable":   int(math.floor(r_bnw_billable)),
+                    "color_billable": int(math.floor(r_color_billable)),
+                    "bnw_amount":     r_bnw_amount,
+                    "color_amount":   r_color_amount
+                })
+            else:
+                r_prorated   = math.floor((free_copies / 30) * r_days)
+                r_total      = r_bnw + r_color
+                r_billable   = max(0, r_total - r_prorated)
+                r_amount     = round(r_billable * excess_rate, 2)
+
+                frappe.db.set_value("Counter Reading", r["name"], {
+                     invoice_field:                              invoice.name,
+                    "prorated_combined_free_copies":        r_prorated,
+                    "excess_combined_billable_consumption": int(r_billable),
+                    "excess_combined_amount":               r_amount
+                })
+
+        frappe.msgprint(
+            f"✅ Standby Cycle Invoice {invoice.name} created — "
+            f"Total {total_days} days across {len(uninvoiced)} readings."
+        )

@@ -3,9 +3,13 @@
 
 frappe.ui.form.on('Counter Reading', {
 
+     onload: function(frm) {
+        toggle_standby_reading_fields(frm);
+    },
     refresh: function(frm) {
         console.log("refreshed...");
         toggle_machine_serial(frm);
+        toggle_standby_reading_fields(frm);  
 
         if (!frm.doc.contract) return;
 
@@ -99,10 +103,46 @@ frappe.ui.form.on('Counter Reading', {
         });
     },
 
+     is_standby_reading: function(frm) {
+        toggle_standby_reading_fields(frm);
+        if (frm.doc.is_standby_reading) {
+        auto_fill_standby_dates(frm);
+    }
+    },
+
+    
+   reading_machine_type: function(frm) {
+    frm.set_value('contract', null);
+    frm.set_query('contract', function() {
+        if (!frm.doc.customer) return {};
+        let is_standby = frm.doc.reading_machine_type === 'Standby';
+        return {
+            filters: [
+                ['customer', '=', frm.doc.customer],
+                ['standby_contract', '=', is_standby ? 1 : 0],
+                ['status', '!=', 'Cancelled']
+            ]
+        };
+    });
+},
+contract: function(frm) {
+    toggle_machine_serial(frm);
+    if (frm.doc.is_standby_reading) {
+        auto_fill_standby_dates(frm);
+    }
+    debounced_calculate(frm);
+},
+
     customer: function(frm) {
         frm.set_query('contract', function() {
+            if (!frm.doc.customer) return {};
+            let is_standby = frm.doc.reading_machine_type === 'Standby';
             return {
-                filters: { customer: frm.doc.customer }
+                filters: [
+                    ['customer', '=', frm.doc.customer],
+                    ['standby_contract', '=', is_standby ? 1 : 0],
+                    ['status', '!=', 'Cancelled']
+                ]
             };
         });
         debounced_calculate(frm);
@@ -260,33 +300,6 @@ frappe.ui.form.on('Counter Reading', {
         });
     }
 });
-
-
-// ============================================================
-// PRINTER CONTRACT — Combined Fields Toggle
-// ============================================================
-
-frappe.ui.form.on('Printer Contract', {
-    onload: function(frm) { toggle_combined_fields(frm); },
-    refresh: function(frm) { toggle_combined_fields(frm); },
-    combined: function(frm) { toggle_combined_fields(frm); }
-});
-
-function toggle_combined_fields(frm) {
-    let is_combined = frm.doc.combined ? 1 : 0;
-    frm.set_df_property('combined_free_copies',     'hidden', is_combined ? 0 : 1);
-    frm.set_df_property('combined_rate',             'hidden', is_combined ? 0 : 1);
-    frm.set_df_property('monthly_free_copies_bnw',  'hidden', is_combined ? 1 : 0);
-    frm.set_df_property('monthly_free_copies_color', 'hidden', is_combined ? 1 : 0);
-    frm.set_df_property('extra_rate_bnw',            'hidden', is_combined ? 1 : 0);
-    frm.set_df_property('extra_rate_color',          'hidden', is_combined ? 1 : 0);
-    frm.refresh_fields([
-        'combined_free_copies', 'combined_rate',
-        'monthly_free_copies_bnw', 'monthly_free_copies_color',
-        'extra_rate_bnw', 'extra_rate_color'
-    ]);
-}
-
 
 // ============================================================
 // FIELD LISTS
@@ -522,6 +535,9 @@ function debounced_calculate(frm) {
 function run_calculation(frm) {
     if (!frm.doc.contract) return;
 
+     // ── Standby: skip 25-day check flag ──────────────────────
+    frm._skip_25_day_check = frm.doc.is_standby_reading ? true : false;
+
     let current_date = frm.doc.reading_date
         ? frappe.datetime.str_to_obj(frm.doc.reading_date)
         : null;
@@ -615,9 +631,11 @@ function run_calculation(frm) {
                 frm.set_value("opening_date", opening_date_obj);
                 frm.set_df_property("opening_date", "hidden", 0);
 
-                if (days < 25) frappe.msgprint(`At least 25 days is required. Only ${days} days have passed.`);
-
-            } else {
+               if (days < 25 && !frm._skip_25_day_check) {
+                  frappe.msgprint(`At least 25 days is required. Only ${days} days have passed.`); 
+                }
+            }
+             else {
                 frm._date_error = false;
                 frm.set_value("days_difference", 0);
                 frm.set_value("opening_date",    null);
@@ -824,6 +842,120 @@ function run_calculation(frm) {
 
 
 // ============================================================
+// STANDBY READING TOGGLE
+// ============================================================
+
+function toggle_standby_reading_fields(frm) {
+    let is_standby = frm.doc.is_standby_reading ? 1 : 0;
+
+    frm.set_df_property('reading_machine_type', 'hidden', is_standby ? 0 : 1);
+    frm.refresh_field('reading_machine_type');
+
+    if (is_standby && frm.doc.customer) {
+        let is_standby_machine = frm.doc.reading_machine_type === 'Standby';
+        frm.set_query('contract', function() {
+            return {
+                filters: [
+                    ['customer', '=', frm.doc.customer],
+                    ['standby_contract', '=', is_standby_machine ? 1 : 0],
+                    ['status', '!=', 'Cancelled']
+                ]
+            };
+        });
+    } else if (!is_standby && frm.doc.customer) {
+        frm.set_query('contract', function() {
+            return {
+                filters: [
+                    ['customer', '=', frm.doc.customer],
+                    ['standby_contract', '=', 0],
+                    ['status', '!=', 'Cancelled']
+                ]
+            };
+        });
+    } else {
+        // No customer selected yet — still block Cancelled
+        frm.set_query('contract', function() {
+            return {
+                filters: [
+                    ['status', '!=', 'Cancelled']
+                ]
+            };
+        });
+    }
+
+
+// ============================================================
+// STANDBY READING — AUTO FILL DATES
+// ============================================================
+
+function auto_fill_standby_dates(frm) {
+    if (!frm.doc.is_standby_reading || !frm.doc.contract) return;
+
+    frappe.call({
+        method: "frappe.client.get",
+        args: { doctype: "Printer Contract", name: frm.doc.contract },
+        callback: function(res) {
+            let contract = res.message;
+
+            // For Original machine type
+            if (frm.doc.reading_machine_type === 'Original') {
+                // Auto-set reading_date = exchange_date
+                if (contract.exchange_date) {
+                    frm.set_value('reading_date', contract.exchange_date);
+                }
+
+                // Check if previous reading exists for this contract
+                frappe.call({
+                    method: "frappe.client.get_list",
+                    args: {
+                        doctype: "Counter Reading",
+                        filters: {
+                            contract:  frm.doc.contract,
+                            name:      ["!=", frm.doc.name || ""],
+                            docstatus: 1
+                        },
+                        fields: [
+                            "reading_date", "bnw_count", "color_count",
+                            "current_bnw_readinga3", "current_color_readinga3",
+                            "current_bnw_readinga5", "current_color_readinga5"
+                        ],
+                        order_by: "reading_date desc",
+                        limit_page_length: 1
+                    },
+                    callback: function(r) {
+                        if (r.message && r.message.length) {
+                            // Previous reading exists — normal flow, nothing extra to set
+                            // debounced_calculate will handle it
+                            debounced_calculate(frm);
+                        } else {
+                            // No previous reading — use contract_start_date as previous
+                            if (contract.contract_start_date) {
+                                frm.set_value('previous_reading_date', contract.contract_start_date);
+                                // opening_date = contract_start_date + 1 day
+                                let opening = frappe.datetime.add_days(contract.contract_start_date, 1);
+                                frm.set_value('opening_date', opening);
+                                frm.set_df_property('opening_date', 'hidden', 0);
+                            }
+                            debounced_calculate(frm);
+                        }
+                    }
+                });
+
+            // For Standby machine type
+            } else if (frm.doc.reading_machine_type === 'Standby') {
+                // Auto-set reading_date = return_date from contract
+                if (contract.return_date) {
+                    frm.set_value('reading_date', contract.return_date);
+                }
+                debounced_calculate(frm);
+            }
+        }
+    });
+}
+
+
+
+// ============================================================
 // Sales Invoice
 // ============================================================
 
@@ -832,3 +964,4 @@ frappe.ui.form.on('Sales Invoice', {
         if (!frm.is_new()) frm.refresh_fields();
     }
 });
+}

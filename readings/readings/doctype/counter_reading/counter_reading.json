@@ -6,6 +6,10 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "standby_section",
+  "is_standby_reading",
+  "column_break_tzww",
+  "reading_machine_type",
   "customer_details_section",
   "customer",
   "reading_date",
@@ -299,7 +303,7 @@
   {
    "fieldname": "prorated_bnw",
    "fieldtype": "Int",
-   "label": "Prorate Free Copies BnW",
+   "label": "Prorated Free Copies BnW",
    "read_only": 1
   },
   {
@@ -498,13 +502,34 @@
    "label": "Invoice",
    "options": "Sales Invoice",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_standby_reading",
+   "fieldtype": "Check",
+   "label": "Is Standby Reading"
+  },
+  {
+   "fieldname": "reading_machine_type",
+   "fieldtype": "Select",
+   "label": "Reading Machine Type",
+   "options": "Original\nStandby"
+  },
+  {
+   "fieldname": "standby_section",
+   "fieldtype": "Section Break",
+   "label": "Standby Section?"
+  },
+  {
+   "fieldname": "column_break_tzww",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-05-27 18:02:52.697073",
+ "modified": "2026-06-03 15:49:58.561094",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Counter Reading",

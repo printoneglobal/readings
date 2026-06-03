@@ -10,19 +10,27 @@
   "combined",
   "column_break_zxwh",
   "combined_machine_contract",
+  "standby_and_replacement_section",
+  "standby_contract",
   "contract_details_section",
   "customer",
-  "machine_serial",
+  "rental_amount",
   "rental_frequency",
   "monthly_free_copies_bnw",
   "extra_rate_bnw",
   "column_break_hvyc",
-  "rental_amount",
+  "machine_serial",
   "contract_start_date",
   "reading_frequency",
   "monthly_free_copies_color",
   "extra_rate_color",
   "naming_series",
+  "standby_contract_details_section",
+  "exchange_machine_serial",
+  "status",
+  "column_break_snsq",
+  "exchange_date",
+  "return_date",
   "combined_contract_details_section",
   "combined_free_copies",
   "column_break_rlgm",
@@ -225,12 +233,54 @@
    "fieldname": "excess_rate_color",
    "fieldtype": "Currency",
    "label": "Excess Rate Color"
+  },
+  {
+   "fieldname": "standby_and_replacement_section",
+   "fieldtype": "Section Break",
+   "label": "Standby and Replacement"
+  },
+  {
+   "default": "0",
+   "fieldname": "standby_contract",
+   "fieldtype": "Check",
+   "label": "Standby Contract?"
+  },
+  {
+   "fieldname": "standby_contract_details_section",
+   "fieldtype": "Section Break",
+   "label": "Standby Contract Details"
+  },
+  {
+   "fieldname": "exchange_machine_serial",
+   "fieldtype": "Link",
+   "label": "Exchange Machine Serial",
+   "options": "Printer Contract"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nReturned\nCancelled"
+  },
+  {
+   "fieldname": "column_break_snsq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "exchange_date",
+   "fieldtype": "Date",
+   "label": "Exchange Date"
+  },
+  {
+   "fieldname": "return_date",
+   "fieldtype": "Date",
+   "label": "Return Date"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-23 00:10:12.095364",
+ "modified": "2026-06-03 16:41:05.362336",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Printer Contract",
