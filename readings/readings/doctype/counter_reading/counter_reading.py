@@ -48,13 +48,13 @@ class CounterReading(Document):
             # Check if there's an incomplete standby cycle for this contract
             pending_standby = frappe.get_all(
                 "Counter Reading",
-                filters={
-                    "contract":             self.contract,
-                    "is_standby_reading":   1,
-                    "reading_machine_type": "Standby",
-                    "docstatus":            ["!=", 1],   # not yet submitted
-                    "name":                 ["!=", self.name]
-                },
+                filters=[
+                    ["contract", "=", self.contract],
+                    ["is_standby_reading", "=", 1],
+                    ["reading_machine_type", "=", "Standby"],
+                    ["docstatus", "!=", 1],
+                    ["name", "!=", self.name]
+                ],
                 fields=["name"],
                 limit=1
             )
@@ -215,11 +215,11 @@ class CounterReading(Document):
                 # Find the original contract for this customer (non-standby)
                 original_contracts = frappe.get_all(
                     "Printer Contract",
-                    filters={
-                        "customer":          self.customer,
-                        "standby_contract":  0,
-                        "machine_serial":    ["!=", ""]
-                    },
+                    filters=[
+                        ["customer", "=", self.customer],
+                        ["standby_contract", "=", 0],
+                        ["machine_serial", "!=", ""]
+                    ],
                     fields=["name", "machine_serial", "customer"]
                 )
 
@@ -751,11 +751,11 @@ class CounterReading(Document):
 
         submitted_readings = frappe.get_all(
             "Counter Reading",
-            filters={
-                "contract":     self.contract,
-                "docstatus":    1,
-                "reading_date": ["between", [first_day, last_day]]
-            },
+            filters=[
+                ["contract", "=", self.contract],
+                ["docstatus", "=", 1],
+                ["reading_date", "between", [first_day, last_day]]
+            ],
             fields=[
                 "name", "machine_serial_number",
                 "actual_consumption", "no_of_days_consumed",
@@ -959,11 +959,11 @@ class CounterReading(Document):
 
         submitted_readings = frappe.get_all(
             "Counter Reading",
-            filters={
-                "contract": self.contract,
-                "docstatus": 1,
-                "reading_date": ["between", [first_day, last_day]]
-            },
+            filters=[
+                ["contract", "=", self.contract],
+                ["docstatus", "=", 1],
+                ["reading_date", "between", [first_day, last_day]]
+            ],
             fields=[
                 "name", "machine_serial_number", "customer", "opening_date",
                 "bnw_consumption", "current_bnw_consumption_a3", "current_bnw_consumptiona5",
