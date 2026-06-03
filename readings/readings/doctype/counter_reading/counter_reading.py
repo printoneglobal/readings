@@ -1185,12 +1185,12 @@ class CounterReading(Document):
         # Fetch ALL submitted standby readings for this customer except current
         all_standby_readings = frappe.get_all(
             "Counter Reading",
-            filters={
-                "customer":           self.customer,
-                "is_standby_reading": 1,
-                "docstatus":          ["=", 1],
-                "name":               ["!=", self.name]
-            },
+            filters= [
+                ["customer", "=", self.customer],
+                ["is_standby_reading", "=", 1],
+                ["docstatus", "=", 1],
+                ["name", "!=", self.name]
+            ]
             fields=[
                 "name", "reading_date", "opening_date",
                 "reading_machine_type", "contract",
