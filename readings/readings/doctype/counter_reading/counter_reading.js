@@ -886,6 +886,7 @@ function toggle_standby_reading_fields(frm) {
             };
         });
     }
+}
 
 
 // ============================================================
@@ -968,4 +969,3 @@ frappe.ui.form.on('Sales Invoice', {
         if (!frm.is_new()) frm.refresh_fields();
     }
 });
-}
