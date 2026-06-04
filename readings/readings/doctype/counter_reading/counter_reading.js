@@ -227,7 +227,7 @@ contract: function(frm) {
                     filters: {
                         contract:  frm.doc.contract,
                         name:      ["!=", frm.doc.name || ""],
-                        docstatus: 1,
+                        docstatus: ["=", 1],
                         ...(frm.doc.machine_serial_number
                             ? { machine_serial_number: frm.doc.machine_serial_number }
                             : {})
@@ -423,7 +423,7 @@ function toggle_machine_fields(frm) {
                     doctype: "Counter Reading",
                     filters: {
                         contract:     frm.doc.contract,
-                        docstatus:    1,
+                        docstatus: ["=", 1],
                         name:         ["!=", frm.doc.name || ""],
                         reading_date: ["between", [month_start, month_end]]
                     }
@@ -552,7 +552,7 @@ function run_calculation(frm) {
                 contract:     frm.doc.contract,
                 name:         ["!=", frm.doc.name || ""],
                 reading_date: ["<", frm.doc.reading_date || "9999-12-31"],
-                docstatus:    1,
+                docstatus: ["=", 1],
                 ...(frm.doc.machine_serial_number
                     ? { machine_serial_number: frm.doc.machine_serial_number }
                     : {})
