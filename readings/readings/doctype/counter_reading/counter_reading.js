@@ -160,7 +160,7 @@ contract: function(frm) {
                 filters: {
                     contract:  frm.doc.contract,
                     name:      ["!=", frm.doc.name || ""],
-                    docstatus: 1,
+                   docstatus: ["=", 1],
                     ...(frm.doc.machine_serial_number
                         ? { machine_serial_number: frm.doc.machine_serial_number }
                         : {})
@@ -916,7 +916,7 @@ function auto_fill_standby_dates(frm) {
                         filters: {
                             contract:  frm.doc.contract,
                             name:      ["!=", frm.doc.name || ""],
-                            docstatus: 1
+                            docstatus: ["=", 1]
                         },
                         fields: [
                             "reading_date", "bnw_count", "color_count",
