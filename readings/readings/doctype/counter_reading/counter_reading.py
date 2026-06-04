@@ -112,16 +112,20 @@ class CounterReading(Document):
         if self.amended_from:
             cancelled_doc          = frappe.get_doc("Counter Reading", self.amended_from)
             cancelled_reading_date = cancelled_doc.reading_date
-
+            
+            base_filters = [
+                ["contract", "=", self.contract],
+                ["docstatus", "=", 1],
+                ["reading_date", "<", cancelled_reading_date],
+                ["name", "!=", self.amended_from]
+                ]
+            if machine_filter:
+                for k, v in machine_filter.items():
+                    base_filters.append([k, "=", v])
+                    
             previous_read_record = frappe.get_all(
                 "Counter Reading",
-                filters={
-                    "contract":     self.contract,
-                    "docstatus":    1,
-                    "reading_date": ["<", cancelled_reading_date],
-                    "name":         ["!=", self.amended_from],
-                    **machine_filter
-                },
+                filters=base_filters,
                 fields=prev_fields,
                 order_by="reading_date desc",
                 limit=1
@@ -131,20 +135,23 @@ class CounterReading(Document):
         # NORMAL FLOW
         # ============================================================
         else:
+            base_filters = [
+                ["contract", "=", self.contract],
+                ["docstatus", "=", 1],
+                ["reading_date", "<", self.reading_date],
+                ["name", "!=", self.name]
+                ]
+            if machine_filter:
+                for k, v in machine_filter.items():
+                    base_filters.append([k, "=", v])
+                    
             previous_read_record = frappe.get_all(
                 "Counter Reading",
-                filters={
-                    "contract":     self.contract,
-                    "docstatus":    1,
-                    "reading_date": ["<", self.reading_date],
-                    "name":         ["!=", self.name],
-                    **machine_filter
-                },
+                filters=base_filters,
                 fields=prev_fields,
                 order_by="reading_date desc",
                 limit=1
             )
-
         # ============================================================
         # GET PREVIOUS RECORD DETAILS
         # ============================================================
