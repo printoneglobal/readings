@@ -284,10 +284,10 @@ class CounterReading(Document):
             # Original reading is on the non-standby contract of the same customer
             original_contract = frappe.get_all(
                 "Printer Contract",
-                filters={
-                    "customer":         self.customer,
-                    "standby_contract": 0
-                },
+                filters=[
+                    ["customer", "=", self.customer],
+                    ["standby_contract", "=", 0]
+                ],
                 fields=["name"],
                 limit=1
             )
@@ -295,12 +295,12 @@ class CounterReading(Document):
 
             original_standby_reading = frappe.get_all(
                 "Counter Reading",
-                filters={
-                    "contract":             original_contract_name or self.contract,
-                    "is_standby_reading":   1,
-                    "reading_machine_type": "Original",
-                    "docstatus":            1
-                },
+                filters=[
+                    ["contract", "=", original_contract_name or self.contract],
+                    ["is_standby_reading", "=", 1],
+                    ["reading_machine_type", "=", "Original"],
+                    ["docstatus", "=", 1]
+                ],
                 fields=["name", "reading_date"],
                 limit=1
             ) if original_contract_name else []

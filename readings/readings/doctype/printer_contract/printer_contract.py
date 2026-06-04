@@ -7,6 +7,7 @@ class PrinterContract(Document):
     def validate(self):
         is_combined_machine_contract = self.combined and self.combined_machine_contract
         is_combined_machine_only     = not self.combined and self.combined_machine_contract
+        
 
         # ── Combined free copies logic ────────────────────────
         if self.combined or is_combined_machine_only:
