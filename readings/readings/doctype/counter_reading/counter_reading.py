@@ -58,26 +58,27 @@ class CounterReading(Document):
                 fields=["name"],
                 limit=1
             )
-            # Also check if Original standby submitted but Standby not yet submitted
+            
             orig_standby_submitted = frappe.get_all(
-                "Counter Reading",
-                filters={
-                    "contract":             self.contract,
-                    "is_standby_reading":   1,
-                    "reading_machine_type": "Original",
-                    "docstatus":            1
-                },
+            "Counter Reading",
+            filters=[
+                ["contract", "=", self.contract],
+                ["is_standby_reading", "=", 1],
+                ["reading_machine_type", "=", "Original"],
+                ["docstatus", "=", 1]
+                ],
                 fields=["name"],
                 limit=1
             )
             standby_submitted = frappe.get_all(
                 "Counter Reading",
-                filters={
-                    "contract":             self.contract,
-                    "is_standby_reading":   1,
-                    "reading_machine_type": "Standby",
-                    "docstatus":            1
-                },
+                filters=[
+                    ["contract", "=", self.contract],
+                    ["is_standby_reading", "=", 1],
+                    ["reading_machine_type", "=", "Standby"],
+                    ["docstatus", "=", 1]
+                ],
+                
                 fields=["name"],
                 limit=1
             )
@@ -1169,10 +1170,10 @@ class CounterReading(Document):
         # Find original contract for this customer
         original_contract = frappe.get_all(
             "Printer Contract",
-            filters={
-                "customer":         self.customer,
-                "standby_contract": 0
-            },
+            filters=[
+                ["customer", "=", self.customer],
+                ["standby_contract", "=", 0]
+            ],
             fields=["name"],
             limit=1
         )
