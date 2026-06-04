@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "enabled",
   "combined_contract_section",
   "combined",
   "column_break_zxwh",
@@ -260,7 +261,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Active\nReturned\nCancelled"
+   "options": "Active\nReturned"
   },
   {
    "fieldname": "column_break_snsq",
@@ -275,12 +276,18 @@
    "fieldname": "return_date",
    "fieldtype": "Date",
    "label": "Return Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled?"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-03 16:41:05.362336",
+ "modified": "2026-06-04 17:00:50.605361",
  "modified_by": "Administrator",
  "module": "Readings",
  "name": "Printer Contract",

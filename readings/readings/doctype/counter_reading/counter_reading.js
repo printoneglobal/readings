@@ -119,8 +119,9 @@ frappe.ui.form.on('Counter Reading', {
         return {
             filters: [
                 ['customer', '=', frm.doc.customer],
-                ['standby_contract', '=', is_standby ? 1 : 0],
-                ['status', '!=', 'Cancelled']
+                ['standby_contract', '=', is_standby ? '1' : '0'],
+                ['status', '!=', 'Cancelled'],
+                ['enabled', '=', '1']
             ]
         };
     });
@@ -140,8 +141,9 @@ contract: function(frm) {
             return {
                 filters: [
                     ['customer', '=', frm.doc.customer],
-                    ['standby_contract', '=', is_standby ? 1 : 0],
-                    ['status', '!=', 'Cancelled']
+                    ['standby_contract', '=', is_standby ? '1' : '0'],
+                    ['status', '!=', 'Cancelled'],
+                    ['enabled', '=', '1']
                 ]
             };
         });
@@ -857,8 +859,9 @@ function toggle_standby_reading_fields(frm) {
             return {
                 filters: [
                     ['customer', '=', frm.doc.customer],
-                    ['standby_contract', '=', is_standby_machine ? 1 : 0],
-                    ['status', '!=', 'Cancelled']
+                    ['standby_contract', '=', is_standby_machine ? '1' : '0'],
+                    ['status', '!=', 'Cancelled'],
+                    ['enabled', '=', '1']
                 ]
             };
         });
@@ -867,8 +870,9 @@ function toggle_standby_reading_fields(frm) {
             return {
                 filters: [
                     ['customer', '=', frm.doc.customer],
-                    ['standby_contract', '=', 0],
-                    ['status', '!=', 'Cancelled']
+                    ['standby_contract', '=', '0'],
+                    ['status', '!=', 'Cancelled'],
+                    ['enabled', '=', '1']
                 ]
             };
         });
